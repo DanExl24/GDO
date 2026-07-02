@@ -50,6 +50,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function updateProfileFields(fields: Partial<AuthUser>) {
+    if (user.value) {
+      user.value = { ...user.value, ...fields };
+      localStorage.setItem('auth_user', JSON.stringify(user.value));
+    }
+  }
+
   return {
     user,
     role,
@@ -58,5 +65,6 @@ export const useAuthStore = defineStore('auth', () => {
     loginAsUser,
     logout,
     restoreSession,
+    updateProfileFields,
   };
 });

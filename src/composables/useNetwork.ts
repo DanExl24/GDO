@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { useNetworkStore } from 'stores/network';
 import { syncService } from 'src/services/sync';
 import { databaseService } from 'src/services/database';
+import api from 'src/services/api';
 import { Notify } from 'quasar';
 
 export function useNetwork() {
@@ -19,10 +20,18 @@ export function useNetwork() {
           await onNetworkChange(status.connected);
         }
       } else {
-        // En ambiente web/local, hacemos un ping al health check de la base de datos
+        // En ambiente web, si el navegador indica que físicamente no hay red, marcar offline al instante
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          if (networkStore.isOnline) {
+            await onNetworkChange(false);
+          }
+          return;
+        }
+
+        // Si hay red física, verificar contra el health check del servidor local
         try {
           const res = await api.get('/health', { timeout: 2500 });
-          const isDbOnline = res.data?.status === 'ok';
+          const isDbOnline = res.data?.status === 'ok' && res.data?.database === 'connected';
           if (isDbOnline !== networkStore.isOnline) {
             await onNetworkChange(isDbOnline);
           }
@@ -52,14 +61,17 @@ export function useNetwork() {
       Notify.create({
         type: 'positive',
         message: '🟢 Conexión restablecida',
-        caption: 'Iniciando sincronización automática...',
         position: 'top',
-        timeout: 3000,
+        timeout: 2500,
         icon: 'wifi',
       });
 
-      // Disparar sincronización automática
-      await triggerSync();
+      // Si NO hay cambios pendientes, hacer pull de datos silencioso.
+      // Si hay cambios pendientes, el diálogo en MainLayout.vue asumirá el control de forma interactiva.
+      const pendingCount = await databaseService.contarPendientes();
+      if (pendingCount === 0) {
+        await triggerSync();
+      }
     } else if (!connected && !wasOffline) {
       Notify.create({
         type: 'negative',
@@ -136,10 +148,10 @@ export function useNetwork() {
         listenerHandle = handle;
       });
     } else {
-      // Fallback web: además de escuchar eventos del window, hacemos polling cada 6 segundos
+      // Fallback web: además de escuchar eventos del window, hacemos polling cada 3 segundos
       window.addEventListener('online', () => checkStatus());
       window.addEventListener('offline', () => onNetworkChange(false));
-      pollingInterval = setInterval(checkStatus, 6000);
+      pollingInterval = setInterval(checkStatus, 3000);
     }
   }
 

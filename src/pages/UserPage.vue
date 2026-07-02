@@ -225,22 +225,21 @@ async function loadUserData() {
       try {
         const histResponse = await api.get(`/usuarios/${authStore.user.id}/historial`);
         const fullHistory = histResponse.data || [];
-        if (fullHistory.length > 0) {
-          await databaseService.saveHistorialLocal(
-            fullHistory.map((h: any) => ({
-              id: h.id,
-              usuario_id: h.usuario_id,
-              campo: h.campo,
-              valor: h.valor,
-              version: h.version,
-              es_actual: h.es_actual,
-              origen: h.origen,
-              fecha_creacion: h.fecha_creacion,
-              fecha_ultima_activacion: h.fecha_ultima_activacion,
-              veces_reutilizado: h.veces_reutilizado
-            }))
-          );
-        }
+        await databaseService.syncLocalHistoryWithServer(
+          authStore.user.id,
+          fullHistory.map((h: any) => ({
+            id: h.id,
+            usuario_id: h.usuario_id,
+            campo: h.campo,
+            valor: h.valor,
+            version: h.version,
+            es_actual: h.es_actual,
+            origen: h.origen,
+            fecha_creacion: h.fecha_creacion,
+            fecha_ultima_activacion: h.fecha_ultima_activacion,
+            veces_reutilizado: h.veces_reutilizado
+          }))
+        );
       } catch (histError) {
         console.error('Error cargando historial para caché local:', histError);
       }
@@ -265,6 +264,13 @@ async function loadUserData() {
         if (userData.value[d.campo] === undefined) {
           userData.value[d.campo] = d.valor;
         }
+      }
+
+      // Sobrescribir con cambios pendientes locales (offline) para mostrar el valor más reciente en pantalla
+      const pendientes = await databaseService.getCambiosPendientes();
+      const userPendientes = pendientes.filter(p => p.usuario_id === authStore.user!.id);
+      for (const p of userPendientes) {
+        userData.value[p.campo] = p.valor;
       }
     }
 
@@ -296,6 +302,13 @@ async function loadUserData() {
       if (userData.value[d.campo] === undefined) {
         userData.value[d.campo] = d.valor;
       }
+    }
+    // Mantener sincronizado el nombre y apellido en el authStore
+    if (userData.value.nombre || userData.value.apellido) {
+      authStore.updateProfileFields({
+        nombre: userData.value.nombre || '',
+        apellido: userData.value.apellido || '',
+      });
     }
   } finally {
     loadingData.value = false;
@@ -339,6 +352,13 @@ async function saveField() {
       h => h.campo === editingFieldKey.value && 
            h.valor.trim().toLowerCase() === editValue.value.trim().toLowerCase()
     );
+
+    // Verificar si es exactamente igual al valor actual mostrado en pantalla para evitar redundancias
+    const currentValue = (userData.value[editingFieldKey.value] || '').trim();
+    if (editValue.value.trim() === currentValue) {
+      showEditDialog.value = false;
+      return;
+    }
 
     if (duplicate) {
       if (duplicate.es_actual) {
@@ -387,14 +407,15 @@ async function ejecutarGuardado() {
         valor: editValue.value.trim(),
       });
 
-      // También guardar localmente
-      await databaseService.updateDatoLocal(
+      // Actualizar columna local para consistencia inmediata
+      await databaseService.updateUsuarioColumnaLocal(
         authStore.user.id,
         editingFieldKey.value,
         editValue.value.trim()
       );
-      // Como estamos online, marcar como sincronizado inmediatamente
-      await databaseService.marcarSincronizados();
+
+      // Cargar los datos y el nuevo historial completo oficial desde el servidor
+      await loadUserData();
 
       $q.notify({
         type: 'positive',
@@ -402,7 +423,7 @@ async function ejecutarGuardado() {
         icon: 'cloud_done',
       });
     } else {
-      // Guardar localmente (offline)
+      // Guardar localmente (offline) — solo registrará el cambio pendiente sin inventar versiones
       await databaseService.updateDatoLocal(
         authStore.user.id,
         editingFieldKey.value,
@@ -420,6 +441,14 @@ async function ejecutarGuardado() {
     // Update UI
     userData.value[editingFieldKey.value] = editValue.value.trim();
     showEditDialog.value = false;
+
+    // Mantener sincronizado el nombre y apellido en el authStore al instante
+    if (editingFieldKey.value === 'nombre' || editingFieldKey.value === 'apellido') {
+      authStore.updateProfileFields({
+        nombre: userData.value.nombre || '',
+        apellido: userData.value.apellido || '',
+      });
+    }
 
     // Refresh pending count
     const pendientes = await databaseService.getCambiosPendientes();
@@ -455,6 +484,14 @@ async function ejecutarGuardado() {
 
         userData.value[editingFieldKey.value] = editValue.value.trim();
         showEditDialog.value = false;
+
+        // Mantener sincronizado el nombre y apellido en el authStore al instante en fallback
+        if (editingFieldKey.value === 'nombre' || editingFieldKey.value === 'apellido') {
+          authStore.updateProfileFields({
+            nombre: userData.value.nombre || '',
+            apellido: userData.value.apellido || '',
+          });
+        }
 
         const pendientes = await databaseService.getCambiosPendientes();
         pendingFields.value = pendientes

@@ -233,7 +233,80 @@ class DatabaseService {
       return;
     }
 
-    localStorage.setItem(`${LS_PREFIX}historial`, JSON.stringify(registros));
+    const currentHistorial: HistorialUsuario[] = JSON.parse(
+      localStorage.getItem(`${LS_PREFIX}historial`) || '[]'
+    );
+    for (const r of registros) {
+      const idx = currentHistorial.findIndex(h => h.id === r.id);
+      if (idx >= 0) {
+        currentHistorial[idx] = r;
+      } else {
+        currentHistorial.push(r);
+      }
+    }
+    localStorage.setItem(`${LS_PREFIX}historial`, JSON.stringify(currentHistorial));
+  }
+
+  async syncLocalHistoryWithServer(usuarioId: number, serverHistory: HistorialUsuario[]): Promise<void> {
+    if (this.isNative && this.db) {
+      // 1. Limpiar historial local existente para este usuario
+      await (this.db as { run: Function }).run({
+        database: 'ofonline_db',
+        statement: 'DELETE FROM historial_local WHERE usuario_id = ?',
+        values: [usuarioId],
+      });
+
+      // 2. Insertar todos los registros del servidor con sus IDs y valores oficiales
+      for (const r of serverHistory) {
+        await (this.db as { run: Function }).run({
+          database: 'ofonline_db',
+          statement: `INSERT OR REPLACE INTO historial_local
+            (id, usuario_id, campo, valor, version, es_actual, origen, fecha_creacion, fecha_ultima_activacion, veces_reutilizado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          values: [
+            r.id,
+            r.usuario_id,
+            r.campo,
+            r.valor,
+            r.version,
+            r.es_actual ? 1 : 0,
+            r.origen,
+            r.fecha_creacion,
+            r.fecha_ultima_activacion || null,
+            r.veces_reutilizado || 0
+          ],
+        });
+      }
+      return;
+    }
+
+    // En ambiente web (localStorage), limpiar registros viejos del usuario e inyectar copia del servidor
+    const allHistory: HistorialUsuario[] = JSON.parse(
+      localStorage.getItem(`${LS_PREFIX}historial`) || '[]'
+    );
+    const otherUsersHistory = allHistory.filter(h => h.usuario_id !== usuarioId);
+    const updatedHistory = [...otherUsersHistory, ...serverHistory];
+    localStorage.setItem(`${LS_PREFIX}historial`, JSON.stringify(updatedHistory));
+  }
+
+  async updateUsuarioColumnaLocal(usuarioId: number, campo: string, valor: string): Promise<void> {
+    const validColumns = ['documento', 'nombre', 'apellido', 'telefono', 'direccion', 'password'];
+    if (!validColumns.includes(campo)) return;
+
+    if (this.isNative && this.db) {
+      await (this.db as { run: Function }).run({
+        database: 'ofonline_db',
+        statement: `UPDATE usuario SET ${campo} = ? WHERE id = ?`,
+        values: [valor, usuarioId],
+      });
+    } else {
+      const usuarios: Usuario[] = JSON.parse(localStorage.getItem(`${LS_PREFIX}usuarios`) || '[]');
+      const uIdx = usuarios.findIndex(u => u.id === usuarioId);
+      if (uIdx >= 0) {
+        (usuarios[uIdx] as any)[campo] = valor;
+        localStorage.setItem(`${LS_PREFIX}usuarios`, JSON.stringify(usuarios));
+      }
+    }
   }
 
   async updateDatoLocal(
@@ -242,157 +315,11 @@ class DatabaseService {
     valor: string
   ): Promise<void> {
     const fechaCreacion = new Date().toISOString();
-    const historial: HistorialUsuario[] = this.isNative
-      ? await this.getHistorialLocal(usuarioId)
-      : JSON.parse(localStorage.getItem(`${LS_PREFIX}historial`) || '[]');
 
-    // Marcar registro actual como no vigente
-    const currentIdx = historial.findIndex(
-      h => h.usuario_id === usuarioId && h.campo === campo && h.es_actual
-    );
+    // 1. Actualizar columnas locales del usuario si aplica (para visualización local inmediata)
+    await this.updateUsuarioColumnaLocal(usuarioId, campo, valor);
 
-    let newVersion = 1;
-    let fallbackHistorialEntry: HistorialUsuario | null = null;
-
-    if (currentIdx >= 0) {
-      historial[currentIdx].es_actual = false;
-      newVersion = historial[currentIdx].version + 1;
-    } else {
-      // Si no hay historial pero sí hay un valor previo en las columnas del usuario, guardarlo como V1 no vigente
-      const validColumns = ['documento', 'nombre', 'apellido', 'telefono', 'direccion', 'password'];
-      if (validColumns.includes(campo)) {
-        let existingValue = '';
-        if (this.isNative && this.db) {
-          const res = await (this.db as { query: Function }).query({
-            database: 'ofonline_db',
-            statement: `SELECT ${campo} FROM usuario WHERE id = ?`,
-            values: [usuarioId],
-          });
-          existingValue = res.values?.[0]?.[campo] || '';
-        } else {
-          const usuarios: Usuario[] = JSON.parse(localStorage.getItem(`${LS_PREFIX}usuarios`) || '[]');
-          const u = usuarios.find(usr => usr.id === usuarioId);
-          existingValue = u ? (u as any)[campo] || '' : '';
-        }
-
-        if (existingValue.trim() !== '') {
-          fallbackHistorialEntry = {
-            id: Date.now() - 1000,
-            usuario_id: usuarioId,
-            campo,
-            valor: existingValue,
-            version: 1,
-            es_actual: false,
-            origen: 'OFFLINE',
-            fecha_creacion: new Date(Date.now() - 1000).toISOString(),
-          };
-          newVersion = 2;
-        }
-      }
-    }
-
-    // Verificar si ya existe este valor exacto en el historial del usuario local (reutilización - RN-05)
-    const existingIdx = historial.findIndex(
-      h => h.usuario_id === usuarioId && h.campo === campo && h.valor.trim().toLowerCase() === valor.trim().toLowerCase()
-    );
-
-    if (existingIdx >= 0) {
-      // REUTILIZACIÓN (RN-05 & RN-06)
-      // 1. Desactivar el actual
-      if (currentIdx >= 0) {
-        historial[currentIdx].es_actual = false;
-        if (this.isNative && this.db) {
-          await (this.db as { run: Function }).run({
-            database: 'ofonline_db',
-            statement: 'UPDATE historial_local SET es_actual = 0 WHERE usuario_id = ? AND campo = ? AND es_actual = 1',
-            values: [usuarioId, campo],
-          });
-        }
-      }
-
-      // 2. Reactivar el existente
-      historial[existingIdx].es_actual = true;
-      historial[existingIdx].fecha_ultima_activacion = fechaCreacion;
-      historial[existingIdx].veces_reutilizado = (historial[existingIdx].veces_reutilizado || 0) + 1;
-
-      if (this.isNative && this.db) {
-        await (this.db as { run: Function }).run({
-          database: 'ofonline_db',
-          statement: `UPDATE historial_local 
-                       SET es_actual = 1, fecha_ultima_activacion = ?, veces_reutilizado = COALESCE(veces_reutilizado, 0) + 1
-                       WHERE id = ?`,
-          values: [historial[existingIdx].fecha_ultima_activacion, historial[existingIdx].id],
-        });
-      } else {
-        localStorage.setItem(`${LS_PREFIX}historial`, JSON.stringify(historial));
-      }
-    } else {
-      // CREACIÓN NORMAL (RN-04)
-      // Agregar nuevo registro
-      const nuevoRegistro: HistorialUsuario = {
-        id: Date.now(),
-        usuario_id: usuarioId,
-        campo,
-        valor,
-        version: newVersion,
-        es_actual: true,
-        origen: 'OFFLINE',
-        fecha_creacion: fechaCreacion,
-      };
-
-      if (this.isNative && this.db) {
-        if (currentIdx >= 0) {
-          await (this.db as { run: Function }).run({
-            database: 'ofonline_db',
-            statement: 'UPDATE historial_local SET es_actual = 0 WHERE usuario_id = ? AND campo = ? AND es_actual = 1',
-            values: [usuarioId, campo],
-          });
-        }
-        
-        if (fallbackHistorialEntry) {
-          await (this.db as { run: Function }).run({
-            database: 'ofonline_db',
-            statement: `INSERT INTO historial_local (usuario_id, campo, valor, version, es_actual, origen, fecha_creacion)
-                         VALUES (?, ?, ?, 1, 0, 'OFFLINE', ?)`,
-            values: [usuarioId, campo, fallbackHistorialEntry.valor, fallbackHistorialEntry.fecha_creacion],
-          });
-        }
-
-        await (this.db as { run: Function }).run({
-          database: 'ofonline_db',
-          statement: `INSERT INTO historial_local (usuario_id, campo, valor, version, es_actual, origen, fecha_creacion)
-                       VALUES (?, ?, ?, ?, 1, 'OFFLINE', ?)`,
-          values: [usuarioId, campo, valor, newVersion, fechaCreacion],
-        });
-      } else {
-        if (fallbackHistorialEntry) {
-          historial.push(fallbackHistorialEntry);
-        }
-        historial.push(nuevoRegistro);
-        localStorage.setItem(`${LS_PREFIX}historial`, JSON.stringify(historial));
-      }
-    }
-
-    // Actualizar columnas locales del usuario si el campo coincide con una de ellas
-    const validColumns = ['documento', 'nombre', 'apellido', 'telefono', 'direccion', 'password'];
-    if (validColumns.includes(campo)) {
-      if (this.isNative && this.db) {
-        await (this.db as { run: Function }).run({
-          database: 'ofonline_db',
-          statement: `UPDATE usuario SET ${campo} = ? WHERE id = ?`,
-          values: [valor, usuarioId],
-        });
-      } else {
-        const usuarios: Usuario[] = JSON.parse(localStorage.getItem(`${LS_PREFIX}usuarios`) || '[]');
-        const uIdx = usuarios.findIndex(u => u.id === usuarioId);
-        if (uIdx >= 0) {
-          (usuarios[uIdx] as any)[campo] = valor;
-          localStorage.setItem(`${LS_PREFIX}usuarios`, JSON.stringify(usuarios));
-        }
-      }
-    }
-
-    // Agregar a cambios pendientes
+    // 2. Agregar a cambios pendientes para sincronizar con el servidor (quien asigna la versión definitiva)
     await this.addCambioPendiente({
       usuario_id: usuarioId,
       campo,

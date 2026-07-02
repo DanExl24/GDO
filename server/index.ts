@@ -85,7 +85,8 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
   } catch (error) {
-    res.status(500).json({ status: 'error', database: 'disconnected', error: String(error) });
+    console.warn('⚠️ Health check: Error consultando base de datos:', (error as Error).message);
+    res.json({ status: 'ok', database: 'disconnected', timestamp: new Date().toISOString() });
   }
 });
 

@@ -116,8 +116,7 @@ Durante la sincronización:
 
 **4. Regla General de Negocio**
 
-Toda modificación realizada en modo **Offline** será considerada la
-versión más reciente de la información.
+"Toda modificación realizada en modo Offline será considerada la modificación más reciente realizada por el usuario. Sin embargo, el número de versión correspondiente será asignado únicamente por el servidor durante el proceso de sincronización
 
 Cuando durante la sincronización un dato ya exista en PostgreSQL:
 
@@ -553,6 +552,40 @@ El número de versión asignado a un registro será permanente e inmutable.
 La reutilización de un valor histórico no modificará su número de versión, ya que este representa el momento en que dicho valor fue registrado por primera vez.
 
 En consecuencia, un registro de versión antigua podrá convertirse nuevamente en el registro vigente sin alterar la secuencia histórica del sistema.
+
+RN-08. Asignación centralizada de versiones
+
+El número de versión de un registro será asignado exclusivamente por el servidor durante el proceso de sincronización.
+
+Los registros creados o modificados en modo Offline no deberán generar ni modificar el número de versión mientras permanezcan almacenados en SQLite.
+
+Durante este estado, SQLite únicamente conservará la información necesaria para identificar el cambio realizado por el usuario y marcarlo como pendiente de sincronización.
+
+Cuando el dispositivo recupere la conexión a Internet y el servidor procese el cambio, este deberá:
+
+Verificar si el valor recibido ya existe en el historial del usuario.
+Si el valor ya existe, aplicar la RN-05 (Reutilización de valores históricos).
+Si el valor no existe, generar una nueva versión consecutiva.
+Registrar el origen del cambio (OFFLINE u ONLINE).
+Retornar al dispositivo la información actualizada del registro.
+
+De esta manera, el servidor será el único responsable de mantener la secuencia histórica de versiones, garantizando que no existan versiones duplicadas ni inconsistencias entre los dispositivos sincronizados.
+
+RN-09. Trazabilidad del origen de los cambios
+
+El sistema deberá registrar el origen desde el cual fue creada cada versión del historial.
+
+Para ello, cada registro de la tabla Historial_Usuario deberá almacenar el atributo:
+
+Campo Descripción
+origen Indica si el registro fue generado en modo OFFLINE o ONLINE.
+
+El atributo origen tendrá fines de auditoría y trazabilidad, por lo que no participará en la asignación del número de versión ni modificará la secuencia histórica del registro.
+
+En consecuencia:
+
+La secuencia de versiones será única, continua e independiente del origen del cambio.
+El origen permitirá conocer el contexto en el que fue creada cada versión sin afectar la integridad del historial.
 
 Internal API:
 

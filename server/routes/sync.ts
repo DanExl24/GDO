@@ -32,9 +32,9 @@ router.post('/', async (req: Request, res: Response) => {
       for (const cambio of cambios) {
         const { usuario_id, campo, valor, fecha_creacion } = cambio;
 
-        // Verificar que el usuario existe
+        // Verificar que el usuario existe y bloquear su fila con FOR UPDATE para serialización
         const userExists = await client.query(
-          'SELECT id FROM usuario WHERE id = $1',
+          'SELECT id FROM usuario WHERE id = $1 FOR UPDATE',
           [usuario_id]
         );
 
@@ -62,7 +62,7 @@ router.post('/', async (req: Request, res: Response) => {
           const histId = existingValueRecord.rows[0].id;
           finalVersion = existingValueRecord.rows[0].version;
 
-          // 1. Marcar el actual como no vigente
+          // 1. Marcar el actual como no vigente de manera masiva
           await client.query(
             `UPDATE historial_usuario SET es_actual = FALSE 
              WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE`,
@@ -88,10 +88,10 @@ router.post('/', async (req: Request, res: Response) => {
           let newVersion = 1;
 
           if (current.rows.length > 0) {
-            // Marcar registro actual como histórico
+            // Marcar todos los registros anteriores de manera masiva
             await client.query(
-              'UPDATE historial_usuario SET es_actual = FALSE WHERE id = $1',
-              [current.rows[0].id]
+              'UPDATE historial_usuario SET es_actual = FALSE WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE',
+              [usuario_id, campo]
             );
             newVersion = current.rows[0].version + 1;
           } else {
@@ -159,28 +159,33 @@ router.get('/pull/:usuario_id', async (req: Request, res: Response) => {
   try {
     const { usuario_id } = req.params;
 
-    const usuario = await pool.query(
-      'SELECT * FROM usuario WHERE id = $1',
-      [usuario_id]
-    );
+    const client = await connectWithRetry();
+    try {
+      const usuario = await client.query(
+        'SELECT * FROM usuario WHERE id = $1',
+        [usuario_id]
+      );
 
-    if (usuario.rows.length === 0) {
-      res.status(404).json({ error: 'Usuario no encontrado' });
-      return;
+      if (usuario.rows.length === 0) {
+        res.status(404).json({ error: 'Usuario no encontrado' });
+        return;
+      }
+
+      const datos = await client.query(
+        `SELECT id, campo, valor, version, es_actual, origen, fecha_creacion, fecha_ultima_activacion, veces_reutilizado
+         FROM historial_usuario
+         WHERE usuario_id = $1 AND es_actual = TRUE
+         ORDER BY campo ASC`,
+        [usuario_id]
+      );
+
+      res.json({
+        usuario: usuario.rows[0],
+        datos: datos.rows,
+      });
+    } finally {
+      client.release();
     }
-
-    const datos = await pool.query(
-      `SELECT campo, valor, version, es_actual, origen, fecha_creacion
-       FROM historial_usuario
-       WHERE usuario_id = $1 AND es_actual = TRUE
-       ORDER BY campo ASC`,
-      [usuario_id]
-    );
-
-    res.json({
-      usuario: usuario.rows[0],
-      datos: datos.rows,
-    });
   } catch (error) {
     console.error('Error en pull:', error);
     res.status(500).json({ error: 'Error obteniendo datos' });
@@ -190,24 +195,29 @@ router.get('/pull/:usuario_id', async (req: Request, res: Response) => {
 // GET /api/sync/pull-all — Obtener todos los usuarios y sus datos actuales
 router.get('/pull-all', async (_req: Request, res: Response) => {
   try {
-    const usuarios = await pool.query('SELECT * FROM usuario ORDER BY id ASC');
+    const client = await connectWithRetry();
+    try {
+      const usuarios = await client.query('SELECT * FROM usuario ORDER BY id ASC');
 
-    const allData = [];
-    for (const user of usuarios.rows) {
-      const datos = await pool.query(
-        `SELECT campo, valor, version, es_actual, origen, fecha_creacion
-         FROM historial_usuario
-         WHERE usuario_id = $1 AND es_actual = TRUE
-         ORDER BY campo ASC`,
-        [user.id]
-      );
-      allData.push({
-        usuario: user,
-        datos: datos.rows,
-      });
+      const allData = [];
+      for (const user of usuarios.rows) {
+        const datos = await client.query(
+          `SELECT id, campo, valor, version, es_actual, origen, fecha_creacion, fecha_ultima_activacion, veces_reutilizado
+           FROM historial_usuario
+           WHERE usuario_id = $1 AND es_actual = TRUE
+           ORDER BY campo ASC`,
+          [user.id]
+        );
+        allData.push({
+          usuario: user,
+          datos: datos.rows,
+        });
+      }
+
+      res.json(allData);
+    } finally {
+      client.release();
     }
-
-    res.json(allData);
   } catch (error) {
     console.error('Error en pull-all:', error);
     res.status(500).json({ error: 'Error obteniendo datos' });

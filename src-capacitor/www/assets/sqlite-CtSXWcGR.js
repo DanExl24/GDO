@@ -1,1 +1,0 @@
-import{t as e}from"./wrappers-Dfvzj6n2.js";import{t}from"./database-hyn3AuqI.js";var n=e(async()=>{try{await t.initialize(),console.log(`✅ Base de datos local inicializada`)}catch(e){console.error(`❌ Error inicializando base de datos local:`,e)}});export{n as default};

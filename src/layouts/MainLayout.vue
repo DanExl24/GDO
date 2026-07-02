@@ -151,8 +151,10 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
 import { useAuthStore } from 'stores/auth';
 import { useNetworkStore } from 'stores/network';
+import { useNetwork } from 'src/composables/useNetwork';
 import { databaseService } from 'src/services/database';
 import { syncService } from 'src/services/sync';
 import api from 'src/services/api';
@@ -161,10 +163,39 @@ import NetworkBanner from 'src/components/NetworkBanner.vue';
 const router = useRouter();
 const authStore = useAuthStore();
 const networkStore = useNetworkStore();
+const $q = useQuasar();
+const { checkStatus } = useNetwork();
 
 const showSyncModal = ref(false);
 const syncStatus = ref<'idle' | 'checking' | 'syncing' | 'completed' | 'error'>('idle');
 const syncLogs = ref<string[]>([]);
+
+
+// Detectar reconexión y proponer sincronización automática de cambios offline
+watch(
+  () => networkStore.isOnline,
+  (isOnline) => {
+    if (isOnline && networkStore.pendingChanges > 0) {
+      $q.dialog({
+        title: '¡De vuelta en línea! 📡',
+        message: `Se ha detectado conexión a internet y tienes ${networkStore.pendingChanges} cambio(s) guardado(s) localmente. ¿Deseas sincronizarlos con la nube de Render ahora?`,
+        dark: true,
+        cancel: {
+          label: 'Más tarde',
+          color: 'grey-5',
+          flat: true
+        },
+        ok: {
+          label: 'Sincronizar ahora',
+          color: 'primary'
+        },
+        persistent: true
+      }).onOk(() => {
+        manualSync();
+      });
+    }
+  }
+);
 
 watch(syncLogs, () => {
   nextTick(() => {

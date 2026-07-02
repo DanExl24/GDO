@@ -10,10 +10,15 @@ const router = Router();
 // GET /api/usuarios — Listar todos
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM usuario ORDER BY id ASC'
-    );
-    res.json(result.rows);
+    const client = await connectWithRetry();
+    try {
+      const result = await client.query(
+        'SELECT * FROM usuario ORDER BY id ASC'
+      );
+      res.json(result.rows);
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error listando usuarios:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -25,29 +30,34 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const usuario = await pool.query(
-      'SELECT * FROM usuario WHERE id = $1',
-      [id]
-    );
+    const client = await connectWithRetry();
+    try {
+      const usuario = await client.query(
+        'SELECT * FROM usuario WHERE id = $1',
+        [id]
+      );
 
-    if (usuario.rows.length === 0) {
-      res.status(404).json({ error: 'Usuario no encontrado' });
-      return;
+      if (usuario.rows.length === 0) {
+        res.status(404).json({ error: 'Usuario no encontrado' });
+        return;
+      }
+
+      // Obtener datos actuales del historial
+      const datos = await client.query(
+        `SELECT campo, valor, version, fecha_creacion, origen
+         FROM historial_usuario
+         WHERE usuario_id = $1 AND es_actual = TRUE
+         ORDER BY campo ASC`,
+        [id]
+      );
+
+      res.json({
+        ...usuario.rows[0],
+        datos: datos.rows,
+      });
+    } finally {
+      client.release();
     }
-
-    // Obtener datos actuales del historial
-    const datos = await pool.query(
-      `SELECT campo, valor, version, fecha_creacion, origen
-       FROM historial_usuario
-       WHERE usuario_id = $1 AND es_actual = TRUE
-       ORDER BY campo ASC`,
-      [id]
-    );
-
-    res.json({
-      ...usuario.rows[0],
-      datos: datos.rows,
-    });
   } catch (error) {
     console.error('Error obteniendo usuario:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -124,9 +134,9 @@ router.put('/:id', async (req: Request, res: Response) => {
     try {
       await client.query('BEGIN');
 
-      // Consultar el estado actual del usuario
+      // Consultar el estado actual del usuario con bloqueo FOR UPDATE para serialización
       const existing = await client.query(
-        'SELECT documento, nombre, apellido, telefono, direccion, password FROM usuario WHERE id = $1',
+        'SELECT documento, nombre, apellido, telefono, direccion, password FROM usuario WHERE id = $1 FOR UPDATE',
         [id]
       );
 
@@ -233,8 +243,13 @@ router.get('/:id/historial', async (req: Request, res: Response) => {
 
     query += ' ORDER BY campo ASC, version DESC';
 
-    const result = await pool.query(query, params);
-    res.json(result.rows);
+    const client = await connectWithRetry();
+    try {
+      const result = await client.query(query, params);
+      res.json(result.rows);
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error obteniendo historial:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -259,6 +274,9 @@ router.post('/:id/datos', async (req: Request, res: Response) => {
     try {
       await client.query('BEGIN');
 
+      // Bloquear la fila del usuario con FOR UPDATE para serializar escrituras concurrentes
+      await client.query('SELECT id FROM usuario WHERE id = $1 FOR UPDATE', [id]);
+
       // Verificar si ya existe este valor exacto en el historial del usuario (reutilización - RN-05)
       const existingValueRecord = await client.query(
         `SELECT id, version, veces_reutilizado FROM historial_usuario
@@ -272,7 +290,7 @@ router.post('/:id/datos', async (req: Request, res: Response) => {
         // REUTILIZAR REGISTRO HISTÓRICO (RN-05 & RN-06)
         const histId = existingValueRecord.rows[0].id;
         
-        // 1. Marcar el actual como no vigente
+        // 1. Marcar el actual como no vigente de manera masiva
         await client.query(
           `UPDATE historial_usuario SET es_actual = FALSE 
            WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE`,
@@ -299,10 +317,10 @@ router.post('/:id/datos', async (req: Request, res: Response) => {
         let newVersion = 1;
 
         if (current.rows.length > 0) {
-          // Marcar actual como no vigente
+          // Marcar todos los registros anteriores del campo como históricos de manera masiva
           await client.query(
-            'UPDATE historial_usuario SET es_actual = FALSE WHERE id = $1',
-            [current.rows[0].id]
+            'UPDATE historial_usuario SET es_actual = FALSE WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE',
+            [id, campo]
           );
           newVersion = current.rows[0].version + 1;
         } else {

@@ -112,17 +112,19 @@ class SyncService {
       const allDataResponse = await api.get('/sync/pull-all');
       for (const item of allDataResponse.data) {
         if (item.datos && item.datos.length > 0) {
-          // Convertir y guardar historial local
+          // Convertir y guardar historial local utilizando los IDs y estados reales de la nube
           const historialItems = item.datos.map(
-            (d: { campo: string; valor: string; version: number; origen: string; fecha_creacion: string }) => ({
-              id: Date.now() + Math.random(),
+            (d: any) => ({
+              id: d.id,
               usuario_id: item.usuario.id,
               campo: d.campo,
               valor: d.valor,
               version: d.version,
-              es_actual: true,
+              es_actual: d.es_actual,
               origen: d.origen,
               fecha_creacion: d.fecha_creacion,
+              fecha_ultima_activacion: d.fecha_ultima_activacion,
+              veces_reutilizado: d.veces_reutilizado
             })
           );
           await databaseService.saveHistorialLocal(historialItems);
