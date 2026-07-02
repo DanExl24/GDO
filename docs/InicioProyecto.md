@@ -480,19 +480,19 @@ global.
 
 # Reglas de Negocio Generales del Sistemas
 
-RN-01. Prioridad de la información Offline
+# RN-01. Prioridad de la información Offline
 
 Toda modificación realizada por un usuario en modo Offline será considerada la versión más reciente de la información durante el proceso de sincronización.
 
 Cuando el dispositivo recupere la conexión a Internet, el sistema enviará los cambios almacenados en SQLite a PostgreSQL. Si existe un conflicto entre la información local y la almacenada en la base de datos global, se dará prioridad a los datos provenientes del almacenamiento local, por representar la última modificación realizada por el usuario.
 
-RN-02. Conservación del historial
+# RN-02. Conservación del historial
 
 El sistema no eliminará físicamente ninguna modificación realizada sobre los datos personales del usuario.
 
 Cada cambio permanecerá registrado en la tabla Historial_Usuario, permitiendo mantener un historial completo de la evolución de cada atributo.
 
-RN-03. Existencia de un único registro vigente
+# RN-03. Existencia de un único registro vigente
 
 Para cada combinación (usuario, campo) únicamente podrá existir un registro marcado como vigente.
 
@@ -503,7 +503,8 @@ es_actual = TRUE
 Todos los registros restantes deberán permanecer con:
 
 es_actual = FALSE
-RN-04. Creación de nuevas versiones
+
+# RN-04. Creación de nuevas versiones
 
 Cuando un usuario actualice un dato personal cuyo valor no exista previamente en el historial correspondiente, el sistema deberá:
 
@@ -514,7 +515,7 @@ Marcar el nuevo registro como vigente (es_actual = TRUE).
 
 De esta manera, cada versión representará la primera aparición de un valor único dentro del historial del usuario.
 
-RN-05. Reutilización de valores históricos
+# RN-05. Reutilización de valores históricos
 
 Cuando un usuario intente registrar un valor que ya exista previamente en su historial para el mismo campo, el sistema no generará una nueva versión.
 
@@ -533,7 +534,7 @@ No se creará un nuevo registro en la base de datos.
 
 Esta regla evita la duplicación de información y garantiza que cada versión represente un valor único dentro del historial del usuario.
 
-RN-06. Reactivación de registros históricos
+# RN-06. Reactivación de registros históricos
 
 Cada vez que un registro histórico vuelva a convertirse en el registro vigente, el sistema deberá actualizar su información de reutilización.
 
@@ -545,7 +546,7 @@ veces_reutilizado Número de veces que el registro ha sido reactivado como dato 
 
 Estos atributos permitirán mantener un historial más completo del ciclo de vida de cada valor registrado.
 
-RN-07. Integridad del historial
+# RN-07. Integridad del historial
 
 El número de versión asignado a un registro será permanente e inmutable.
 
@@ -553,7 +554,7 @@ La reutilización de un valor histórico no modificará su número de versión, 
 
 En consecuencia, un registro de versión antigua podrá convertirse nuevamente en el registro vigente sin alterar la secuencia histórica del sistema.
 
-RN-08. Asignación centralizada de versiones
+# RN-08. Asignación centralizada de versiones
 
 El número de versión de un registro será asignado exclusivamente por el servidor durante el proceso de sincronización.
 
@@ -571,7 +572,7 @@ Retornar al dispositivo la información actualizada del registro.
 
 De esta manera, el servidor será el único responsable de mantener la secuencia histórica de versiones, garantizando que no existan versiones duplicadas ni inconsistencias entre los dispositivos sincronizados.
 
-RN-09. Trazabilidad del origen de los cambios
+# RN-09. Trazabilidad del origen de los cambios
 
 El sistema deberá registrar el origen desde el cual fue creada cada versión del historial.
 
@@ -587,10 +588,10 @@ En consecuencia:
 La secuencia de versiones será única, continua e independiente del origen del cambio.
 El origen permitirá conocer el contexto en el que fue creada cada versión sin afectar la integridad del historial.
 
-Internal API:
+# Internal API:
 
 postgresql://ofonline_user:ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H@dpg-d8vf4orsq97s7389lgog-a/ofonline
 
-External API:
+# External API:
 
 postgresql://ofonline_user:ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H@dpg-d8vf4orsq97s7389lgog-a.virginia-postgres.render.com/ofonline

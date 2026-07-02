@@ -28,6 +28,7 @@ export interface HistorialUsuario {
   es_actual: boolean;
   origen: string;
   fecha_creacion: string;
+  fecha_sincronizacion?: string | null;
   fecha_ultima_activacion?: string | null;
   veces_reutilizado?: number;
 }
@@ -171,10 +172,6 @@ class DatabaseService {
     localStorage.setItem(`${LS_PREFIX}usuarios`, JSON.stringify(usuarios));
   }
 
-  async getUsuarioByDocumento(documento: string): Promise<Usuario | null> {
-    const usuarios = await this.getUsuarios();
-    return usuarios.find(u => u.documento === documento) || null;
-  }
 
   // ==============================
   // Historial Local

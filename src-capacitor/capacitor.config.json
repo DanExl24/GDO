@@ -1,5 +1,8 @@
 {
   "appId": "com.offlineonline.app",
   "appName": "OfflineOnline",
-  "webDir": "www"
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http"
+  }
 }

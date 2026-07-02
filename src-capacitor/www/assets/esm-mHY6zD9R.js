@@ -1,2 +1,0 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./web-o58DiKB0.js","./index-CghDDbn6.js","./pinia-BI_LOsPA.js","./use-dark-DCZ-Yk0x.js","./index-DTrmBzpx.css"])))=>i.map(i=>d[i]);
-import{B as e,U as t}from"./index-CghDDbn6.js";var n=t(`CapacitorSQLite`,{web:()=>e(()=>import(`./web-o58DiKB0.js`).then(e=>new e.CapacitorSQLiteWeb),__vite__mapDeps([0,1,2,3,4]),import.meta.url),electron:()=>window.CapacitorCustomPlatform.plugins.CapacitorSQLite});export{n as CapacitorSQLite};

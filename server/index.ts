@@ -90,10 +90,11 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   }
 });
 
-// Start
-app.listen(PORT, () => {
-  console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
+// Start - Escuchar en 0.0.0.0 para aceptar conexiones del emulador Android (10.0.2.2)
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`\n🚀 Servidor corriendo en http://0.0.0.0:${PORT}`);
   console.log(`📡 API disponible en http://localhost:${PORT}/api`);
+  console.log(`📱 Emulador Android: http://10.0.2.2:${PORT}/api`);
   console.log(`💚 Health check: http://localhost:${PORT}/api/health\n`);
 });
 

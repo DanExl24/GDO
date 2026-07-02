@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'stores/auth';
@@ -178,8 +178,24 @@ const availableFields = [
   { key: 'password', label: 'Contraseña', icon: 'lock' },
 ];
 
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
 onMounted(async () => {
   await loadUserData();
+
+  // Polling silencioso: cada 10 segundos, si estamos online, recargar datos del servidor
+  // para detectar cambios hechos desde otros dispositivos (ej. emulador Android)
+  refreshInterval = setInterval(async () => {
+    if (networkStore.isOnline && authStore.user && !savingField.value) {
+      await loadUserData();
+    }
+  }, 10000);
+});
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+  }
 });
 
 watch(() => networkStore.pendingChanges, async (newVal, oldVal) => {
@@ -212,6 +228,13 @@ async function loadUserData() {
         direccion: user.direccion || '',
         password: user.password || '',
       };
+
+      // Mantener authStore sincronizado con los datos más recientes del servidor
+      // para que la tarjeta del encabezado siempre muestre el nombre/apellido actualizado
+      authStore.updateProfileFields({
+        nombre: user.nombre || '',
+        apellido: user.apellido || '',
+      });
       
       const datos = response.data.datos || [];
       for (const d of datos) {

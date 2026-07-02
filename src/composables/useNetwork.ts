@@ -14,31 +14,34 @@ export function useNetwork() {
 
   async function checkStatus() {
     try {
+      let physicalConnected = true;
+
       if (Capacitor.isNativePlatform()) {
         const status = await Network.getStatus();
-        if (status.connected !== networkStore.isOnline) {
-          await onNetworkChange(status.connected);
-        }
+        physicalConnected = status.connected;
       } else {
-        // En ambiente web, si el navegador indica que físicamente no hay red, marcar offline al instante
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          if (networkStore.isOnline) {
-            await onNetworkChange(false);
-          }
-          return;
+          physicalConnected = false;
         }
+      }
 
-        // Si hay red física, verificar contra el health check del servidor local
-        try {
-          const res = await api.get('/health', { timeout: 2500 });
-          const isDbOnline = res.data?.status === 'ok' && res.data?.database === 'connected';
-          if (isDbOnline !== networkStore.isOnline) {
-            await onNetworkChange(isDbOnline);
-          }
-        } catch {
-          if (networkStore.isOnline) {
-            await onNetworkChange(false);
-          }
+      if (!physicalConnected) {
+        if (networkStore.isOnline) {
+          await onNetworkChange(false);
+        }
+        return;
+      }
+
+      // Si hay conexión física reportada, verificar conectividad real con el servidor
+      try {
+        const res = await api.get('/health', { timeout: 3000 });
+        const isDbOnline = res.data?.status === 'ok' && res.data?.database === 'connected';
+        if (isDbOnline !== networkStore.isOnline) {
+          await onNetworkChange(isDbOnline);
+        }
+      } catch {
+        if (networkStore.isOnline) {
+          await onNetworkChange(false);
         }
       }
     } catch {
@@ -143,16 +146,17 @@ export function useNetwork() {
     // Listener nativo (Capacitor)
     if (Capacitor.isNativePlatform()) {
       Network.addListener('networkStatusChange', (status) => {
-        onNetworkChange(status.connected);
+        checkStatus();
       }).then((handle) => {
         listenerHandle = handle;
       });
     } else {
-      // Fallback web: además de escuchar eventos del window, hacemos polling cada 3 segundos
       window.addEventListener('online', () => checkStatus());
       window.addEventListener('offline', () => onNetworkChange(false));
-      pollingInterval = setInterval(checkStatus, 3000);
     }
+
+    // Polling activo cada 4 segundos para ambos entornos (nativo y web)
+    pollingInterval = setInterval(checkStatus, 4000);
   }
 
   function stopListening() {

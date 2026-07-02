@@ -1,0 +1,1 @@
+import{t as e}from"./pinia-BI_LOsPA.js";import{R as t}from"./index-DpF40wAC.js";var n=t(({app:t})=>{let n=e();t.use(n),console.log(`🍍 Pinia registrado manualmente en la app`)});export{n as default};
