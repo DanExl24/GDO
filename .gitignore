@@ -1,0 +1,8 @@
+node_modules
+dist
+.quasar
+src-capacitor/android
+src-capacitor/ios
+src-capacitor/node_modules
+.env
+*.apk

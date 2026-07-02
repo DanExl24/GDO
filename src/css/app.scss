@@ -1,0 +1,314 @@
+/* ============================================
+   SISTEMA OFFLINE-ONLINE — GLOBAL STYLES
+   Dark mode, mobile-first, glassmorphism
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ---- CSS Variables ---- */
+:root {
+  --color-primary: #00BCD4;
+  --color-primary-dark: #0097A7;
+  --color-primary-light: #4DD0E1;
+  --color-secondary: #26A69A;
+  --color-accent: #9C27B0;
+  --color-bg-dark: #121212;
+  --color-bg-card: #1E1E1E;
+  --color-bg-glass: rgba(30, 30, 30, 0.75);
+  --color-text: #ECEFF1;
+  --color-text-secondary: #90A4AE;
+  --color-online: #4CAF50;
+  --color-offline: #F44336;
+  --color-syncing: #FF9800;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(0, 188, 212, 0.15);
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- Base ---- */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--color-bg-dark);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- Glassmorphism Card ---- */
+.glass-card {
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+}
+
+/* ---- Network Status Banner ---- */
+.network-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  transition: all var(--transition-smooth);
+}
+
+.network-banner--online {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.9), rgba(38, 166, 154, 0.9));
+  color: white;
+}
+
+.network-banner--offline {
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.95), rgba(211, 47, 47, 0.95));
+  color: white;
+  animation: pulse-offline 2s ease-in-out infinite;
+}
+
+.network-banner--syncing {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.95), rgba(255, 183, 77, 0.9));
+  color: #1a1a1a;
+}
+
+@keyframes pulse-offline {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* ---- Sync Progress ---- */
+.sync-progress-enter-active,
+.sync-progress-leave-active {
+  transition: all var(--transition-smooth);
+}
+
+.sync-progress-enter-from,
+.sync-progress-leave-to {
+  opacity: 0;
+  transform: translateY(-100%);
+}
+
+/* ---- Animated Gradient Background ---- */
+.gradient-bg {
+  background: linear-gradient(135deg, #0d1117 0%, #161b22 30%, #0d2137 60%, #0a1628 100%);
+  min-height: 100vh;
+}
+
+/* ---- Login Page ---- */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 40px 32px;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+/* ---- User Card ---- */
+.user-card {
+  padding: 20px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.user-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-secondary));
+  border-radius: 4px 0 0 4px;
+}
+
+.user-card__name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.user-card__doc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* ---- Info Field Row ---- */
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--transition-fast);
+}
+
+.field-row:last-child {
+  border-bottom: none;
+}
+
+.field-row:hover {
+  background: rgba(0, 188, 212, 0.05);
+}
+
+.field-row__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-secondary);
+}
+
+.field-row__value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* ---- Pending Badge ---- */
+.pending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 100px;
+  background: rgba(255, 152, 0, 0.15);
+  color: var(--color-syncing);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+/* ---- History Timeline ---- */
+.history-item {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-bg-card);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  transition: all var(--transition-fast);
+}
+
+.history-item--old {
+  opacity: 0.5;
+  border-left-color: var(--color-text-secondary);
+}
+
+.history-item__version {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.history-item__value {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 4px 0;
+}
+
+.history-item__date {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* ---- FAB Animation ---- */
+.fab-animated {
+  transition: transform var(--transition-fast);
+}
+
+.fab-animated:active {
+  transform: scale(0.92);
+}
+
+/* ---- Page Transitions ---- */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* ---- Scrollbar Styling ---- */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* ---- Quasar Component Overrides ---- */
+.q-field--dark .q-field__control {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.q-btn--flat.text-primary {
+  color: var(--color-primary) !important;
+}
+
+.q-dialog__inner > .q-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
