@@ -117,7 +117,10 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { documento, nombre, apellido, telefono, direccion, password } = req.body;
 
-    const client = await pool.connect();
+    const client = await connectWithRetry();
+    client.on('error', (err) => {
+      console.warn('⚠️ Error inesperado asíncrono en el cliente de base de datos:', err.message);
+    });
     try {
       await client.query('BEGIN');
 
@@ -250,6 +253,9 @@ router.post('/:id/datos', async (req: Request, res: Response) => {
     }
 
     const client = await connectWithRetry();
+    client.on('error', (err) => {
+      console.warn('⚠️ Error inesperado asíncrono en el cliente de base de datos:', err.message);
+    });
     try {
       await client.query('BEGIN');
 

@@ -86,6 +86,16 @@
           </span>
           {{ item.valor }}
         </div>
+        
+        <!-- Información de Reutilización (RN-06) -->
+        <div v-if="item.veces_reutilizado && Number(item.veces_reutilizado) > 0" class="q-my-xs text-caption text-primary row items-center">
+          <q-icon name="replay" size="14px" class="q-mr-xs" />
+          <span>Reutilizado <strong>{{ item.veces_reutilizado }} veces</strong></span>
+          <span v-if="item.fecha_ultima_activacion" class="text-grey-5 q-ml-xs">
+            (Última activación: {{ formatDate(item.fecha_ultima_activacion) }})
+          </span>
+        </div>
+
         <div class="history-item__date row items-center justify-between text-grey-6 text-caption">
           <span>
             <q-icon name="event" size="12px" class="q-mr-xs" />
@@ -191,7 +201,16 @@ function getRankLabel(item: HistorialUsuario): string {
   // Filtrar todos los registros del historial que tengan el mismo campo
   const fieldItems = history.value
     .filter(h => h.campo === item.campo)
-    .sort((a, b) => b.version - a.version); // De mayor a menor versión (la actual primero)
+    .sort((a, b) => {
+      // 1. El registro vigente (es_actual) siempre va primero
+      const aActual = String(a.es_actual) === 'true' || a.es_actual === true || (a as any).es_actual === 1;
+      const bActual = String(b.es_actual) === 'true' || b.es_actual === true || (b as any).es_actual === 1;
+      if (aActual && !bActual) return -1;
+      if (!aActual && bActual) return 1;
+
+      // 2. Si ninguno es el vigente, ordenar de mayor a menor versión
+      return b.version - a.version;
+    });
 
   const index = fieldItems.findIndex(h => h.id === item.id);
   if (index === 0) return 'PRINCIPAL';

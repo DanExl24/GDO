@@ -215,9 +215,19 @@ class DatabaseService {
         await (this.db as { run: Function }).run({
           database: 'ofonline_db',
           statement: `INSERT OR REPLACE INTO historial_local
-            (usuario_id, campo, valor, version, es_actual, origen, fecha_creacion)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          values: [r.usuario_id, r.campo, r.valor, r.version, r.es_actual ? 1 : 0, r.origen, r.fecha_creacion],
+            (usuario_id, campo, valor, version, es_actual, origen, fecha_creacion, fecha_ultima_activacion, veces_reutilizado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          values: [
+            r.usuario_id, 
+            r.campo, 
+            r.valor, 
+            r.version, 
+            r.es_actual ? 1 : 0, 
+            r.origen, 
+            r.fecha_creacion,
+            r.fecha_ultima_activacion || null,
+            r.veces_reutilizado || 0
+          ],
         });
       }
       return;

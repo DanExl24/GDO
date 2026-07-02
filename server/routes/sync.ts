@@ -21,6 +21,9 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const client = await connectWithRetry();
+    client.on('error', (err) => {
+      console.warn('⚠️ Error inesperado asíncrono en el cliente de base de datos:', err.message);
+    });
     const results: { success: boolean; campo: string; usuario_id: number; version: number }[] = [];
 
     try {

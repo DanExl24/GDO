@@ -221,20 +221,28 @@ async function loadUserData() {
         }
       }
 
-      // Update local cache
-      if (datos.length > 0) {
-        await databaseService.saveHistorialLocal(
-          datos.map((d: { campo: string; valor: string; version: number; origen: string; fecha_creacion: string }) => ({
-            id: Date.now() + Math.random(),
-            usuario_id: authStore.user!.id,
-            campo: d.campo,
-            valor: d.valor,
-            version: d.version || 1,
-            es_actual: true,
-            origen: d.origen || 'ONLINE',
-            fecha_creacion: d.fecha_creacion || new Date().toISOString(),
-          }))
-        );
+      // Cargar historial completo para popular la caché local (necesario para la validación de duplicados RN-05)
+      try {
+        const histResponse = await api.get(`/usuarios/${authStore.user.id}/historial`);
+        const fullHistory = histResponse.data || [];
+        if (fullHistory.length > 0) {
+          await databaseService.saveHistorialLocal(
+            fullHistory.map((h: any) => ({
+              id: h.id,
+              usuario_id: h.usuario_id,
+              campo: h.campo,
+              valor: h.valor,
+              version: h.version,
+              es_actual: h.es_actual,
+              origen: h.origen,
+              fecha_creacion: h.fecha_creacion,
+              fecha_ultima_activacion: h.fecha_ultima_activacion,
+              veces_reutilizado: h.veces_reutilizado
+            }))
+          );
+        }
+      } catch (histError) {
+        console.error('Error cargando historial para caché local:', histError);
       }
     } else {
       // Load from local
