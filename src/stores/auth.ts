@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { connectSocket, disconnectSocket } from 'src/services/socket';
 
 interface AuthUser {
   id: number;
@@ -20,6 +21,9 @@ export const useAuthStore = defineStore('auth', () => {
     // Persistir sesión
     localStorage.setItem('auth_role', 'admin');
     localStorage.removeItem('auth_user');
+    
+    // Conectar WebSocket
+    connectSocket();
   }
 
   function loginAsUser(usuario: AuthUser) {
@@ -28,6 +32,9 @@ export const useAuthStore = defineStore('auth', () => {
 
     localStorage.setItem('auth_role', 'user');
     localStorage.setItem('auth_user', JSON.stringify(usuario));
+
+    // Conectar WebSocket
+    connectSocket();
   }
 
   function logout() {
@@ -36,6 +43,9 @@ export const useAuthStore = defineStore('auth', () => {
 
     localStorage.removeItem('auth_role');
     localStorage.removeItem('auth_user');
+
+    // Desconectar WebSocket
+    disconnectSocket();
   }
 
   function restoreSession() {

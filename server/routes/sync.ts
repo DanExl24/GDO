@@ -138,6 +138,9 @@ router.post('/', async (req: Request, res: Response) => {
 
       await client.query('COMMIT');
 
+      const io = req.app.get('io');
+      if (io) io.emit('data-updated');
+
       res.json({
         message: `Sincronización completada: ${results.filter(r => r.success).length}/${cambios.length} cambios aplicados`,
         results,

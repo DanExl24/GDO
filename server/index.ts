@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
+import http from 'http';
+import { Server } from 'socket.io';
 import usuariosRouter from './routes/usuarios';
 import syncRouter from './routes/sync';
 import pool from './db';
@@ -9,6 +11,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  },
+});
+
+app.set('io', io);
 
 // Middleware
 app.use(cors());
@@ -85,17 +97,103 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
   } catch (error) {
-    console.warn('⚠️ Health check: Error consultando base de datos:', (error as Error).message);
     res.json({ status: 'ok', database: 'disconnected', timestamp: new Date().toISOString() });
   }
 });
 
+// Gestión de WebSockets (Socket.io)
+const activeSockets = new Map<string, { usuario_id: number; role: string; nombre: string }>();
+
+io.on('connection', (socket) => {
+  console.log(`🔌 Cliente WebSocket conectado: ${socket.id}`);
+
+  // Enviar estado inmediato de la base de datos
+  checkDbStatus().then((status) => {
+    socket.emit('db-status', { database: status });
+  });
+
+  // Registro del usuario en el socket
+  socket.on('register', (data: { usuario_id: number; role: string; nombre: string }) => {
+    activeSockets.set(socket.id, data);
+    console.log(`👤 Registro WebSocket: ${data.nombre} (${data.role})`);
+
+    // Notificar a otros (especialmente administradores)
+    socket.broadcast.emit('user-connected', {
+      usuario_id: data.usuario_id,
+      nombre: data.nombre,
+      role: data.role,
+    });
+
+    if (data.role === 'admin') {
+      sendActiveUsersList();
+    }
+  });
+
+  // Escuchar estado de sincronización del cliente y reportar a los demás
+  socket.on('sync-status', (data: { status: 'started' | 'completed' | 'error'; count?: number }) => {
+    const userInfo = activeSockets.get(socket.id);
+    if (userInfo) {
+      if (data.status === 'started') {
+        socket.broadcast.emit('sync-started', { usuario_id: userInfo.usuario_id, nombre: userInfo.nombre });
+      } else if (data.status === 'completed') {
+        socket.broadcast.emit('sync-completed', { usuario_id: userInfo.usuario_id, nombre: userInfo.nombre, count: data.count || 0 });
+        // Emitir actualización de datos general para que los clientes se refresquen
+        io.emit('data-updated');
+      } else if (data.status === 'error') {
+        socket.broadcast.emit('sync-error', { usuario_id: userInfo.usuario_id, nombre: userInfo.nombre });
+      }
+    }
+  });
+
+  // Desconexión
+  socket.on('disconnect', () => {
+    const userInfo = activeSockets.get(socket.id);
+    if (userInfo) {
+      console.log(`👤 Desconexión de registro: ${userInfo.nombre}`);
+      socket.broadcast.emit('user-disconnected', {
+        usuario_id: userInfo.usuario_id,
+        nombre: userInfo.nombre,
+        role: userInfo.role,
+      });
+      activeSockets.delete(socket.id);
+      sendActiveUsersList();
+    }
+    console.log(`🔌 Cliente WebSocket desconectado: ${socket.id}`);
+  });
+});
+
+function sendActiveUsersList() {
+  const users = Array.from(activeSockets.values());
+  io.emit('active-users', users);
+}
+
+// Chequeo de estado de base de datos interno del servidor
+let lastDbStatus = 'connected';
+async function checkDbStatus(): Promise<string> {
+  try {
+    await pool.query('SELECT 1');
+    return 'connected';
+  } catch (error) {
+    return 'disconnected';
+  }
+}
+
+// Sondeo interno del servidor cada 30 segundos
+setInterval(async () => {
+  const currentStatus = await checkDbStatus();
+  if (currentStatus !== lastDbStatus) {
+    lastDbStatus = currentStatus;
+    io.emit('db-status', { database: currentStatus });
+    console.log(`📡 Estado de Base de Datos PostgreSQL cambiado a: ${currentStatus}`);
+  }
+}, 30000);
+
 // Start - Escuchar en 0.0.0.0 para aceptar conexiones del emulador Android (10.0.2.2)
-app.listen(Number(PORT), '0.0.0.0', () => {
+server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`\n🚀 Servidor corriendo en http://0.0.0.0:${PORT}`);
   console.log(`📡 API disponible en http://localhost:${PORT}/api`);
   console.log(`📱 Emulador Android: http://10.0.2.2:${PORT}/api`);
   console.log(`💚 Health check: http://localhost:${PORT}/api/health\n`);
 });
 
-export default app;
+export default server;

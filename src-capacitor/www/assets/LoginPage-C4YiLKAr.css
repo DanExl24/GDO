@@ -1,0 +1,50 @@
+
+.login-bg-circles[data-v-49117b0c] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.circle[data-v-49117b0c] {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.08;
+}
+.circle-1[data-v-49117b0c] {
+  width: 300px;
+  height: 300px;
+  background: var(--color-primary);
+  top: -80px;
+  right: -60px;
+  animation: float-49117b0c 8s ease-in-out infinite;
+}
+.circle-2[data-v-49117b0c] {
+  width: 200px;
+  height: 200px;
+  background: var(--color-secondary);
+  bottom: 20%;
+  left: -40px;
+  animation: float-49117b0c 6s ease-in-out infinite reverse;
+}
+.circle-3[data-v-49117b0c] {
+  width: 150px;
+  height: 150px;
+  background: var(--color-accent);
+  bottom: -30px;
+  right: 20%;
+  animation: float-49117b0c 10s ease-in-out infinite;
+}
+@keyframes float-49117b0c {
+0%, 100% { transform: translateY(0px) scale(1);
+}
+50% { transform: translateY(-30px) scale(1.05);
+}
+}
+.login-container[data-v-49117b0c] {
+  position: relative;
+  z-index: 1;
+}

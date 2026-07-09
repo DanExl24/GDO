@@ -1,0 +1,13 @@
+
+.network-banner .q-icon[data-v-671ca904] {
+  animation: none;
+}
+.network-banner--syncing .q-icon[data-v-671ca904] {
+  animation: spin-671ca904 1.5s linear infinite;
+}
+@keyframes spin-671ca904 {
+from { transform: rotate(0deg);
+}
+to { transform: rotate(360deg);
+}
+}

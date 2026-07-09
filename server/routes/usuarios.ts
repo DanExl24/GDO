@@ -74,6 +74,11 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    if (String(documento).length > 10) {
+      res.status(400).json({ error: 'El documento no puede exceder los 10 dígitos' });
+      return;
+    }
+
     // Verificar si ya existe
     const existing = await pool.query(
       'SELECT id FROM usuario WHERE documento = $1',
@@ -108,6 +113,8 @@ router.post('/', async (req: Request, res: Response) => {
       }
 
       await client.query('COMMIT');
+      const io = req.app.get('io');
+      if (io) io.emit('data-updated');
       res.status(201).json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -126,6 +133,11 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { documento, nombre, apellido, telefono, direccion, password } = req.body;
+
+    if (documento && String(documento).length > 10) {
+      res.status(400).json({ error: 'El documento no puede exceder los 10 dígitos' });
+      return;
+    }
 
     const client = await connectWithRetry();
     client.on('error', (err) => {
@@ -189,6 +201,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       }
 
       await client.query('COMMIT');
+      const io = req.app.get('io');
+      if (io) io.emit('data-updated');
       res.json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -217,6 +231,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    const io = req.app.get('io');
+    if (io) io.emit('data-updated');
     res.json({ message: 'Usuario eliminado correctamente' });
   } catch (error) {
     console.error('Error eliminando usuario:', error);
@@ -356,6 +372,8 @@ router.post('/:id/datos', async (req: Request, res: Response) => {
       }
 
       await client.query('COMMIT');
+      const io = req.app.get('io');
+      if (io) io.emit('data-updated');
       res.status(201).json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');

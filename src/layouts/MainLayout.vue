@@ -159,6 +159,7 @@ import { databaseService } from 'src/services/database';
 import { syncService } from 'src/services/sync';
 import api from 'src/services/api';
 import NetworkBanner from 'src/components/NetworkBanner.vue';
+import { getSocket } from 'src/services/socket';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -214,6 +215,11 @@ async function manualSync() {
   syncStatus.value = 'checking';
   syncLogs.value = ['🔄 Verificando conexión con el servidor y la base de datos de Render...'];
 
+  const socket = getSocket();
+  if (socket) {
+    socket.emit('sync-status', { status: 'started' });
+  }
+
   try {
     // 1. Probar salud del servidor y conexión con Postgres en Render
     const healthRes = await api.get('/health');
@@ -237,6 +243,10 @@ async function manualSync() {
       syncStatus.value = 'completed';
       networkStore.updatePendingCount(0);
       networkStore.setSyncCompleted('Sincronizado');
+
+      if (socket) {
+        socket.emit('sync-status', { status: 'completed', count: 0 });
+      }
       return;
     }
 
@@ -282,12 +292,20 @@ async function manualSync() {
     syncStatus.value = 'completed';
     syncLogs.value.push(`🎉 ¡Sincronización finalizada con éxito! ${exitosos}/${pendientes.length} cambios consolidados.`);
     networkStore.setSyncCompleted(`Sincronizados ${exitosos} cambios`);
+
+    if (socket) {
+      socket.emit('sync-status', { status: 'completed', count: exitosos });
+    }
   } catch (error) {
     console.error('Error durante la sincronización manual:', error);
     networkStore.setOnline(false);
     syncStatus.value = 'error';
     syncLogs.value.push('❌ Error de conexión: El servidor local o la base de datos de Render no están disponibles.');
     syncLogs.value.push('⚠️ Se conservaron los cambios localmente en la caché. Se reintentará luego.');
+
+    if (socket) {
+      socket.emit('sync-status', { status: 'error' });
+    }
   }
 }
 

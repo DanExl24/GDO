@@ -77,6 +77,13 @@
             style="font-weight: 700;"
           >
             {{ user.nombre.charAt(0) }}{{ user.apellido.charAt(0) }}
+            <q-badge
+              floating
+              color="positive"
+              rounded
+              v-if="isUserOnline(user.id)"
+              style="padding: 4px;"
+            />
           </q-avatar>
           <div class="col">
             <div class="user-card__name">{{ user.nombre }} {{ user.apellido }}</div>
@@ -261,12 +268,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useNetworkStore } from 'stores/network';
 import api from 'src/services/api';
 import { databaseService, type Usuario } from 'src/services/database';
+import { getSocket } from 'src/services/socket';
 
 const $q = useQuasar();
 const router = useRouter();
@@ -302,8 +310,37 @@ const filteredUsers = computed(() => {
   );
 });
 
+const activeUsers = ref<{ usuario_id: number; role: string; nombre: string }[]>([]);
+
+function isUserOnline(userId: number): boolean {
+  return activeUsers.value.some(u => u.usuario_id === userId);
+}
+
 onMounted(async () => {
   await loadUsers();
+
+  const socket = getSocket();
+  if (socket) {
+    socket.on('active-users', (users) => {
+      activeUsers.value = users;
+    });
+    socket.on('data-updated', loadUsers);
+
+    // Registrar admin para recibir lista activa
+    socket.emit('register', {
+      usuario_id: 0,
+      role: 'admin',
+      nombre: 'Administrador',
+    });
+  }
+});
+
+onUnmounted(() => {
+  const socket = getSocket();
+  if (socket) {
+    socket.off('active-users');
+    socket.off('data-updated', loadUsers);
+  }
 });
 
 async function loadUsers() {

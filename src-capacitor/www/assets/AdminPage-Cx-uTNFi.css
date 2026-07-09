@@ -1,0 +1,10 @@
+
+.list-enter-active[data-v-c27ee197],
+.list-leave-active[data-v-c27ee197] {
+  transition: all 0.3s ease;
+}
+.list-enter-from[data-v-c27ee197],
+.list-leave-to[data-v-c27ee197] {
+  opacity: 0;
+  transform: translateX(30px);
+}

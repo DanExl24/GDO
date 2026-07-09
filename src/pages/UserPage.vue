@@ -108,6 +108,7 @@
             dark
             dense
             autofocus
+            :maxlength="editingFieldKey === 'documento' ? 10 : 50"
             @keyup.enter="saveField"
           >
             <template v-slot:prepend>
@@ -152,6 +153,7 @@ import { useAuthStore } from 'stores/auth';
 import { useNetworkStore } from 'stores/network';
 import api from 'src/services/api';
 import { databaseService } from 'src/services/database';
+import { getSocket } from 'src/services/socket';
 
 const $q = useQuasar();
 const router = useRouter();
@@ -178,23 +180,25 @@ const availableFields = [
   { key: 'password', label: 'Contraseña', icon: 'lock' },
 ];
 
-let refreshInterval: ReturnType<typeof setInterval> | null = null;
+async function handleDataUpdated() {
+  if (networkStore.isOnline && authStore.user && !savingField.value) {
+    await loadUserData();
+  }
+}
 
 onMounted(async () => {
   await loadUserData();
 
-  // Polling silencioso: cada 10 segundos, si estamos online, recargar datos del servidor
-  // para detectar cambios hechos desde otros dispositivos (ej. emulador Android)
-  refreshInterval = setInterval(async () => {
-    if (networkStore.isOnline && authStore.user && !savingField.value) {
-      await loadUserData();
-    }
-  }, 10000);
+  const socket = getSocket();
+  if (socket) {
+    socket.on('data-updated', handleDataUpdated);
+  }
 });
 
 onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval);
+  const socket = getSocket();
+  if (socket) {
+    socket.off('data-updated', handleDataUpdated);
   }
 });
 
