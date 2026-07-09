@@ -174,29 +174,54 @@ router.put('/:id', async (req: Request, res: Response) => {
         const newValue = String(newFields[field as keyof typeof newFields] || '').trim();
 
         if (oldValue !== newValue) {
-          // Obtener la última versión en el historial
-          const current = await client.query(
-            `SELECT id, version FROM historial_usuario
-             WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE`,
-            [id, field]
+          // Verificar si ya existe este valor exacto en el historial del usuario (reutilización)
+          const existingValueRecord = await client.query(
+            `SELECT id, version, veces_reutilizado FROM historial_usuario
+             WHERE usuario_id = $1 AND campo = $2 AND TRIM(LOWER(valor)) = TRIM(LOWER($3))`,
+            [id, field, newValue]
           );
 
-          let newVersion = 1;
-          if (current.rows.length > 0) {
-            // Marcar versión anterior como histórica (no actual)
+          if (existingValueRecord.rows.length > 0) {
+            // REUTILIZAR REGISTRO HISTÓRICO
+            const histId = existingValueRecord.rows[0].id;
+
+            // 1. Marcar el actual como no vigente de manera masiva
             await client.query(
-              'UPDATE historial_usuario SET es_actual = FALSE WHERE id = $1',
-              [current.rows[0].id]
+              'UPDATE historial_usuario SET es_actual = FALSE WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE',
+              [id, field]
             );
-            newVersion = current.rows[0].version + 1;
-          }
 
-          // Insertar nueva versión
-          await client.query(
-            `INSERT INTO historial_usuario (usuario_id, campo, valor, version, es_actual, origen, fecha_creacion)
-             VALUES ($1, $2, $3, $4, TRUE, 'ONLINE', NOW())`,
-            [id, field, newValue, newVersion]
-          );
+            // 2. Reactivar el anterior
+            await client.query(
+              `UPDATE historial_usuario 
+               SET es_actual = TRUE, fecha_ultima_activacion = NOW(), veces_reutilizado = COALESCE(veces_reutilizado, 0) + 1, fecha_sincronizacion = NOW()
+               WHERE id = $1`,
+              [histId]
+            );
+          } else {
+            // CREAR NUEVA VERSIÓN
+            // Obtener versión máxima del campo en todo el historial
+            const maxVersionRes = await client.query(
+              `SELECT COALESCE(MAX(version), 0) as max_version FROM historial_usuario
+               WHERE usuario_id = $1 AND campo = $2`,
+              [id, field]
+            );
+            
+            const newVersion = parseInt(maxVersionRes.rows[0].max_version, 10) + 1;
+
+            // Marcar todos los registros anteriores como no actuales
+            await client.query(
+              'UPDATE historial_usuario SET es_actual = FALSE WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE',
+              [id, field]
+            );
+
+            // Insertar nueva versión
+            await client.query(
+              `INSERT INTO historial_usuario (usuario_id, campo, valor, version, es_actual, origen, fecha_creacion, fecha_sincronizacion)
+               VALUES ($1, $2, $3, $4, TRUE, 'ONLINE', NOW(), NOW())`,
+              [id, field, newValue, newVersion]
+            );
+          }
         }
       }
 

@@ -78,23 +78,22 @@ router.post('/', async (req: Request, res: Response) => {
           );
         } else {
           // CREAR NUEVO REGISTRO (RN-04)
-          // Obtener versión actual del campo
-          const current = await client.query(
-            `SELECT id, version FROM historial_usuario
-             WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE`,
+          // Obtener versión máxima del campo en todo el historial
+          const maxVersionRes = await client.query(
+            `SELECT COALESCE(MAX(version), 0) as max_version FROM historial_usuario
+             WHERE usuario_id = $1 AND campo = $2`,
             [usuario_id, campo]
           );
 
-          let newVersion = 1;
+          let newVersion = parseInt(maxVersionRes.rows[0].max_version, 10) + 1;
 
-          if (current.rows.length > 0) {
-            // Marcar todos los registros anteriores de manera masiva
-            await client.query(
-              'UPDATE historial_usuario SET es_actual = FALSE WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE',
-              [usuario_id, campo]
-            );
-            newVersion = current.rows[0].version + 1;
-          } else {
+          // Marcar todos los registros anteriores de manera masiva
+          await client.query(
+            'UPDATE historial_usuario SET es_actual = FALSE WHERE usuario_id = $1 AND campo = $2 AND es_actual = TRUE',
+            [usuario_id, campo]
+          );
+
+          if (newVersion === 1) {
             // Si no hay historial pero sí hay un valor previo en las columnas del usuario, guardarlo como V1 no vigente
             const validColumns = ['documento', 'nombre', 'apellido', 'telefono', 'direccion', 'password'];
             if (validColumns.includes(campo)) {
