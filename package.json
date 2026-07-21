@@ -11,7 +11,9 @@
     "dev:android": "quasar dev -m capacitor -T android",
     "build:android": "quasar build -m capacitor -T android",
     "server": "npx ts-node server/index.ts",
-    "init-db": "npx ts-node server/init-db.ts"
+    "init-db": "npx ts-node server/init-db.ts",
+    "build:server": "tsc -p server/tsconfig.json",
+    "start:server": "node server/dist/index.js"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^6.0.2",
