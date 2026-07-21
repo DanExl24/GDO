@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # 1. Base de datos local PostgreSQL
+  postgres:
+    image: postgres:18.4-alpine
+    container_name: gdo-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ofonline_user
+      POSTGRES_PASSWORD: ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H
+      POSTGRES_DB: ofonline
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # 2. Servidor Backend Express (Socket.io)
+  backend:
+    build:
+      context: .
+      dockerfile: deploy.dockerFile # Apunta a tu Dockerfile del server (o Dockerfile.server)
+    container_name: gdo-backend
+    restart: always
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - DATABASE_URL=postgresql://ofonline_user:ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H@postgres:5432/ofonline
+      - ADMIN_USER=admin
+      - ADMIN_PASS=admin123
+    depends_on:
+      - postgres
+
+  # 3. Cliente Frontend (Quasar)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: gdo-frontend
+    restart: always
+    ports:
+      - "8080:80" # Puedes abrir http://localhost:8080 en tu navegador
+    environment:
+      - API_URL=http://localhost:3005 # Apunta al backend en producción
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

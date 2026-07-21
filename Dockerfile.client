@@ -1,0 +1,32 @@
+# --- ETAPA 1: Compilación ---
+FROM node:24.15-alpine AS builder
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY package*.json ./
+RUN npm ci
+
+# Copiar el resto del código del frontend
+COPY quasar.config.ts tsconfig.json index.html ./
+COPY public ./public
+COPY src ./src
+
+# RECIBIR LA URL DE PRODUCCIÓN DURANTE EL BUILD
+ARG API_URL
+ENV API_URL=$API_URL
+
+# Compilar el frontend para producción
+RUN npx quasar build
+
+
+# --- ETAPA 2: Servidor de Producción (Nginx) ---
+FROM nginx:alpine
+
+# Copiar los archivos compilados de Quasar al directorio web de Nginx
+COPY --from=builder /app/dist/spa /usr/share/nginx/html
+
+# Exponer el puerto 80 del servidor web
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
