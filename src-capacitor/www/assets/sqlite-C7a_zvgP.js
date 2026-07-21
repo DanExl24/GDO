@@ -1,0 +1,1 @@
+import{t as e}from"./database-D74shG1f.js";import{z as t}from"./index-CmD1maQk.js";var n=t(async()=>{try{await e.initialize(),console.log(`✅ Base de datos local inicializada`)}catch(e){console.error(`❌ Error inicializando base de datos local:`,e)}});export{n as default};

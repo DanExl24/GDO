@@ -3,11 +3,10 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+const isLocalDocker = process.env.DATABASE_URL?.includes('@postgres:5432');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: isLocalDocker ? false : { rejectUnauthorized: false }, // Desactiva SSL si es el docker local
   connectionTimeoutMillis: 10000,
 });
 
