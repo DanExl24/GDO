@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 4. Instalar las dependencias de producción y desarrollo (necesarias para compilar TypeScript)
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # 5. Copiar el código fuente y las configuraciones del proyecto
 COPY tsconfig.json ./
