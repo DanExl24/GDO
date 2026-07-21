@@ -18,7 +18,7 @@ COPY server ./server
 RUN npm run build:server
 
 # 7. Limpiar dependencias de desarrollo para hacer la imagen más ligera en producción
-RUN npm prune --production
+RUN npm prune --production --legacy-peer-deps
 
 # 8. Exponer el puerto del servidor (3005)
 EXPOSE 3005
