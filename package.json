@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^6.0.2",
+    "@capacitor/core": "^6.2.1",
     "@capacitor/network": "^6.0.0",
     "@capgo/capacitor-updater": "^8.51.2",
     "@quasar/extras": "^1.16.0",
