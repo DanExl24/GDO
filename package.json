@@ -12,6 +12,7 @@
     "build:android": "quasar build -m capacitor -T android",
     "server": "npx ts-node server/index.ts",
     "init-db": "npx ts-node server/init-db.ts",
+    "init-db:prod": "node server/dist/init-db.js",
     "build:server": "tsc -p server/tsconfig.json",
     "start:server": "node server/dist/index.js"
   },

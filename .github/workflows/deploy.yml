@@ -57,6 +57,6 @@ jobs:
 
             # 5. Database Automation: Automatic Migrations
             echo "🗄️ Running database initialization..."
-            docker compose exec -T backend npm run init-db
+            docker compose exec -T backend npm run init-db:prod
 
             echo "✅ Deployment completed successfully!"
