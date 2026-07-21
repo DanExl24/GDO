@@ -1,29 +1,43 @@
 version: '3.8'
 
 services:
-  # 1. Base de datos local PostgreSQL
+  # 1. Base de datos PostgreSQL (Acceso interno)
   postgres:
     image: postgres:18.4-alpine
     container_name: gdo-postgres
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
     environment:
       POSTGRES_USER: ofonline_user
       POSTGRES_PASSWORD: ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H
       POSTGRES_DB: ofonline
-    ports:
-      - "5432:5432"
+    # En producción no solemos exponer el puerto de la base de datos al exterior por seguridad.
+    # Si necesitas conectarte desde tu PC, puedes descomentar la siguiente línea:
+    # ports:
+    #   - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - gdo_db_data:/var/lib/postgresql/data
+    networks:
+      - gdo-network
 
   # 2. Servidor Backend Express (Socket.io)
   backend:
     build:
       context: .
-      dockerfile: deploy.dockerFile # Apunta a tu Dockerfile del server (o Dockerfile.server)
+      dockerfile: deploy.dockerFile
     container_name: gdo-backend
     restart: always
-    ports:
-      - "3005:3005"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
     environment:
       - PORT=3005
       - DATABASE_URL=postgresql://ofonline_user:ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H@postgres:5432/ofonline
@@ -31,20 +45,38 @@ services:
       - ADMIN_PASS=admin123
     depends_on:
       - postgres
+    networks:
+      - gdo-network
+      - proxy-network
 
-  # 3. Cliente Frontend (Quasar)
+  # 3. Cliente Frontend (Quasar con Nginx)
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.client
+      args:
+        - API_URL=https://api.tu-dominio.com # Cambiar por el dominio de tu API de producción en el build
     container_name: gdo-frontend
     restart: always
-    ports:
-      - "8080:80" # Puedes abrir http://localhost:8080 en tu navegador
-    environment:
-      - API_URL=http://localhost:3005 # Apunta al backend en producción
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    # No exponemos puertos directamente al host en producción.
+    # El panel de Nginx (Nginx Proxy Manager / proxy-network) mapeará el dominio al puerto 80 del contenedor.
     depends_on:
       - backend
+    networks:
+      - gdo-network
+      - proxy-network
+
+networks:
+  gdo-network:
+    driver: bridge
+  proxy-network:
+    external: true
 
 volumes:
-  pgdata:
+  gdo_db_data:
