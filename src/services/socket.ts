@@ -22,7 +22,7 @@ export function connectSocket() {
   console.log(`🔌 Conectando WebSocket a: ${API_URL}`);
 
   socket = io(API_URL, {
-    transports: ['websocket'],
+    transports: ['polling', 'websocket'],
     autoConnect: true,
     reconnection: true,
     reconnectionDelay: 2000,

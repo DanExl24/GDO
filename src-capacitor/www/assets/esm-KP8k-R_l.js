@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./web-pf6UVddy.js","./dist-BDdlKBnh.js"])))=>i.map(i=>d[i]);
+import{r as e}from"./dist-BDdlKBnh.js";import{t}from"./preload-helper-CV77j2BA.js";var n=e(`CapacitorSQLite`,{web:()=>t(()=>import(`./web-pf6UVddy.js`).then(e=>new e.CapacitorSQLiteWeb),__vite__mapDeps([0,1]),import.meta.url),electron:()=>window.CapacitorCustomPlatform.plugins.CapacitorSQLite});export{n as CapacitorSQLite};
