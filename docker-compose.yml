@@ -51,7 +51,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        - API_URL=${VITE_API_URL:-https://api.tu-dominio.com}
+        - API_URL=${VITE_API_URL:-https://api-gdo.adsoproject.dev}
     container_name: gdo-frontend
     restart: always
     deploy:
