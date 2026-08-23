@@ -10,10 +10,10 @@ El sistema GDO opera con una arquitectura de **doble almacenamiento** que permit
 
 ```
 ┌─────────────────────────┐        ┌──────────────────────────┐
-│   DISPOSITIVO LOCAL     │        │   NUBE (Servidor)        │
+│   DISPOSITIVO LOCAL     │        │   SERVIDOR VPS           │
 │                         │        │                          │
 │  ┌───────────────────┐  │  PUSH  │  ┌────────────────────┐  │
-│  │  SQLite (Android)  │──────────▶│  PostgreSQL (Render) │  │
+│  │  SQLite (Android)  │──────────▶│  PostgreSQL (Docker)  │  │
 │  │  localStorage (Web)│◀──────────│  (Fuente de verdad)  │  │
 │  └───────────────────┘  │  PULL  │  └────────────────────┘  │
 │                         │        │                          │
@@ -25,7 +25,7 @@ El sistema GDO opera con una arquitectura de **doble almacenamiento** que permit
 ```
 
 ### Principios Fundamentales
-1. **PostgreSQL en la nube es la fuente única de verdad.** Todas las versiones oficiales del historial se generan exclusivamente en el servidor.
+1. **PostgreSQL en el VPS es la fuente única de verdad.** Todas las versiones oficiales del historial se generan exclusivamente en el backend del servidor VPS.
 2. **El almacenamiento local (SQLite/localStorage) es una caché de trabajo.** Su función es permitir al usuario operar sin internet y acumular cambios para sincronizarlos después.
 3. **La sincronización es bidireccional:** el cliente sube (PUSH) sus cambios pendientes y luego descarga (PULL) los datos actualizados del servidor.
 
