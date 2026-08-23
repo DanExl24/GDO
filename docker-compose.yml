@@ -18,6 +18,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-gdo}
     volumes:
       - gdo_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-gdo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       gdo-network:
         aliases:
@@ -42,7 +47,8 @@ services:
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:-admin123}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - gdo-network
       - proxy-network

@@ -1,7 +1,7 @@
-import pool from './db';
+import pool, { connectWithRetry } from './db';
 
 async function initDatabase() {
-  const client = await pool.connect();
+  const client = await connectWithRetry(5, 1500);
 
   try {
     console.log('🔄 Creando tablas en PostgreSQL...');
