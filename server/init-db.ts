@@ -60,7 +60,18 @@ async function initDatabase() {
       ON historial_usuario (usuario_id, campo, es_actual)
       WHERE es_actual = TRUE;
     `);
-    console.log('✅ Índice creado/verificado.');
+
+    // Índices únicos para evitar duplicados en valor y versión
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS unique_history_value 
+      ON historial_usuario (usuario_id, campo, LOWER(TRIM(valor)));
+    `);
+
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS unique_history_version 
+      ON historial_usuario (usuario_id, campo, version);
+    `);
+    console.log('✅ Índices creados/verificados.');
 
     console.log('\n🎉 Base de datos inicializada correctamente.');
   } catch (error) {

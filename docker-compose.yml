@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Base de datos PostgreSQL (Acceso interno)
+  # 1. Base de datos PostgreSQL (Solo acceso interno)
   postgres:
     image: postgres:18.4-alpine
     container_name: gdo-postgres
@@ -13,13 +13,9 @@ services:
         reservations:
           memory: 512M
     environment:
-      POSTGRES_USER: ofonline_user
-      POSTGRES_PASSWORD: ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H
-      POSTGRES_DB: ofonline
-    # En producción no solemos exponer el puerto de la base de datos al exterior por seguridad.
-    # Si necesitas conectarte desde tu PC, puedes descomentar la siguiente línea:
-    # ports:
-    #   - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-gdo}
     volumes:
       - gdo_db_data:/var/lib/postgresql/data
     networks:
@@ -29,7 +25,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: deploy.dockerFile
+      dockerfile: Dockerfile.backend
     container_name: gdo-backend
     restart: always
     deploy:
@@ -39,10 +35,10 @@ services:
         reservations:
           memory: 512M
     environment:
-      - PORT=3005
-      - DATABASE_URL=postgresql://ofonline_user:ByVHdFGasYDHWbDg6Ro4ZYg8SeO7Fa8H@postgres:5432/ofonline
-      - ADMIN_USER=admin
-      - ADMIN_PASS=admin123
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-gdo}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-admin123}
     depends_on:
       - postgres
     networks:
@@ -53,9 +49,9 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: Dockerfile.frontend
       args:
-        - API_URL=https://api.tu-dominio.com # Cambiar por el dominio de tu API de producción en el build
+        - API_URL=${VITE_API_URL:-https://api.tu-dominio.com}
     container_name: gdo-frontend
     restart: always
     deploy:
@@ -64,8 +60,6 @@ services:
           memory: 128M
         reservations:
           memory: 64M
-    # No exponemos puertos directamente al host en producción.
-    # El panel de Nginx (Nginx Proxy Manager / proxy-network) mapeará el dominio al puerto 80 del contenedor.
     depends_on:
       - backend
     networks:
