@@ -24,7 +24,7 @@ export default configure(() => {
       },
       vueRouterMode: 'hash',
       env: {
-        API_URL: process.env.API_URL || 'http://localhost:3005',
+        API_URL: process.env.API_URL || process.env.VITE_API_URL || 'https://api-gdo.adsoproject.dev',
       },
     },
 
