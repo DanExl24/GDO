@@ -6,7 +6,8 @@ dotenv.config();
 const isLocal =
   process.env.DATABASE_URL?.includes('localhost') ||
   process.env.DATABASE_URL?.includes('127.0.0.1') ||
-  process.env.DATABASE_URL?.includes('@postgres:5432') ||
+  process.env.DATABASE_URL?.includes('@postgres') ||
+  process.env.DATABASE_URL?.includes('@gdo-postgres') ||
   process.env.DATABASE_SSL === 'false';
 
 const pool = new Pool({

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # 1. Base de datos PostgreSQL (Solo acceso interno)
   postgres:
-    image: postgres:18.4-alpine
+    image: postgres:17-alpine
     container_name: gdo-postgres
     restart: always
     deploy:
@@ -19,7 +19,9 @@ services:
     volumes:
       - gdo_db_data:/var/lib/postgresql/data
     networks:
-      - gdo-network
+      gdo-network:
+        aliases:
+          - postgres
 
   # 2. Servidor Backend Express (Socket.io)
   backend:
