@@ -55,6 +55,11 @@ export function connectSocket() {
   });
 
   socket.on('disconnect', (reason) => {
+    // Si la desconexión fue manual (logout), no marcar como offline ni disparar notificación
+    if (reason === 'io client disconnect') {
+      console.log('🔌 WebSocket desconectado voluntariamente.');
+      return;
+    }
     networkStore.setOnline(false);
     console.warn(`🔌 WebSocket desconectado del servidor. Razón: ${reason}`);
   });
