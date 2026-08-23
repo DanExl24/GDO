@@ -76,7 +76,7 @@
             class="q-mr-md"
             style="font-weight: 700;"
           >
-            {{ user.nombre.charAt(0) }}{{ user.apellido.charAt(0) }}
+            {{ (user?.nombre?.charAt(0) || 'U') }}{{ (user?.apellido?.charAt(0) || '') }}
             <q-badge
               floating
               color="positive"
@@ -86,10 +86,10 @@
             />
           </q-avatar>
           <div class="col">
-            <div class="user-card__name">{{ user.nombre }} {{ user.apellido }}</div>
+            <div class="user-card__name">{{ user?.nombre || 'Usuario' }} {{ user?.apellido || '' }}</div>
             <div class="user-card__doc">
               <q-icon name="badge" size="12px" class="q-mr-xs" />
-              {{ user.documento }}
+              {{ user?.documento || '' }}
             </div>
           </div>
           <div>
@@ -348,9 +348,13 @@ async function loadUsers() {
   try {
     if (networkStore.isOnline) {
       const response = await api.get('/usuarios');
-      usuarios.value = response.data;
-      // Cache locally
-      await databaseService.saveUsuarios(response.data);
+      if (Array.isArray(response.data)) {
+        usuarios.value = response.data;
+        // Cache locally
+        await databaseService.saveUsuarios(response.data);
+      } else {
+        usuarios.value = await databaseService.getUsuarios();
+      }
     } else {
       // Load from local cache
       usuarios.value = await databaseService.getUsuarios();
