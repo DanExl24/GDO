@@ -144,50 +144,72 @@ onMounted(async () => {
 });
 
 async function loadUserInfo() {
+  // Carga inmediata desde almacenamiento local
   try {
-    if (networkStore.isOnline) {
-      const response = await api.get(`/usuarios/${userId}`);
-      userName.value = `${response.data.nombre} ${response.data.apellido} (${response.data.documento})`;
+    const users = await databaseService.getUsuarios();
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      userName.value = `${user.nombre} ${user.apellido} (${user.documento})`;
     } else {
-      const users = await databaseService.getUsuarios();
-      const user = users.find(u => u.id === userId);
-      if (user) {
-        userName.value = `${user.nombre} ${user.apellido} (${user.documento})`;
-      } else {
-        userName.value = `Usuario #${userId}`;
-      }
+      userName.value = `Usuario #${userId}`;
     }
   } catch {
     userName.value = `Usuario #${userId}`;
   }
+
+  // Si está online, refrescar con el servidor en segundo plano
+  if (networkStore.isOnline) {
+    try {
+      const response = await api.get(`/usuarios/${userId}`);
+      if (response.data?.nombre) {
+        userName.value = `${response.data.nombre} ${response.data.apellido} (${response.data.documento})`;
+      }
+    } catch {
+      // mantener el valor local
+    }
+  }
 }
 
 async function loadHistory() {
-  loading.value = true;
   const campoFilter = selectedField.value === 'todos' ? undefined : selectedField.value;
 
+  // 1. Carga inmediata desde la base de datos local (instantáneo)
   try {
-    if (networkStore.isOnline) {
-      const response = await api.get(`/usuarios/${userId}/historial`, {
-        params: { campo: campoFilter },
-      });
-      history.value = response.data;
-    } else {
-      const localHistory = await databaseService.getHistorialLocal(userId);
-      if (campoFilter) {
-        history.value = localHistory.filter(h => h.campo === campoFilter);
-      } else {
-        history.value = localHistory;
-      }
-    }
-  } catch {
     const localHistory = await databaseService.getHistorialLocal(userId);
     if (campoFilter) {
       history.value = localHistory.filter(h => h.campo === campoFilter);
     } else {
       history.value = localHistory;
     }
-  } finally {
+  } catch (err) {
+    console.warn('Error cargando historial local:', err);
+  }
+
+  // Si ya hay datos locales, no mostrar spinner bloqueante
+  if (history.value.length > 0) {
+    loading.value = false;
+  } else {
+    loading.value = true;
+  }
+
+  // 2. Refrescar desde el servidor si estamos online
+  if (networkStore.isOnline) {
+    try {
+      const response = await api.get(`/usuarios/${userId}/historial`, {
+        params: { campo: campoFilter },
+      });
+      if (Array.isArray(response.data)) {
+        history.value = response.data;
+        if (!campoFilter) {
+          await databaseService.saveHistorialLocal(response.data);
+        }
+      }
+    } catch (err) {
+      console.warn('No se pudo refrescar historial desde el servidor:', err);
+    } finally {
+      loading.value = false;
+    }
+  } else {
     loading.value = false;
   }
 }
