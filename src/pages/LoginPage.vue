@@ -138,8 +138,23 @@
       </transition>
     </div>
 
-    <!-- Network Status Indicator -->
-    <div class="q-mt-lg text-center">
+    <!-- Network Status Indicator & APK Download Link -->
+    <div class="q-mt-lg text-center column items-center q-gutter-y-sm">
+      <q-btn
+        flat
+        dense
+        rounded
+        color="positive"
+        icon="android"
+        label="Descargar App Android (.apk)"
+        tag="a"
+        href="/app-release.apk"
+        download="OfflineOnline.apk"
+        target="_blank"
+        class="text-weight-bold shadow-1"
+        style="background: rgba(76,175,80,0.18); font-size: 13px; padding: 4px 14px;"
+      />
+
       <q-chip
         :color="isOnline ? 'positive' : 'negative'"
         text-color="white"

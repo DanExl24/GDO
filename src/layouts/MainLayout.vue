@@ -35,6 +35,22 @@
         />
 
         <q-btn
+          v-if="!$q.platform.is.nativeMobile"
+          flat
+          round
+          dense
+          icon="android"
+          color="positive"
+          tag="a"
+          href="/app-release.apk"
+          download="OfflineOnline.apk"
+          target="_blank"
+          class="q-ml-sm"
+        >
+          <q-tooltip>Descargar App Android (.apk)</q-tooltip>
+        </q-btn>
+
+        <q-btn
           flat
           round
           dense
@@ -59,6 +75,45 @@
           <q-tooltip>Cerrar sesión</q-tooltip>
         </q-btn>
       </q-toolbar>
+
+      <!-- Banner de descarga APK móvil -->
+      <q-banner
+        v-if="showApkBanner && !$q.platform.is.nativeMobile"
+        dense
+        class="bg-primary text-dark text-weight-bold shadow-2 q-py-xs q-px-md"
+        style="font-size: 12px;"
+      >
+        <template v-slot:avatar>
+          <q-icon name="android" color="dark" size="20px" />
+        </template>
+
+        <span>
+          <strong>¡App Oficial Android!</strong> Descarga el .apk para usar la app sin conexión.
+        </span>
+
+        <template v-slot:action>
+          <q-btn
+            flat
+            dense
+            color="dark"
+            icon="download"
+            label="Descargar APK"
+            class="text-weight-bold"
+            tag="a"
+            href="/app-release.apk"
+            download="OfflineOnline.apk"
+            target="_blank"
+          />
+          <q-btn
+            flat
+            round
+            dense
+            icon="close"
+            color="dark"
+            @click="dismissApkBanner"
+          />
+        </template>
+      </q-banner>
     </q-header>
 
     <!-- Page Content -->
@@ -170,6 +225,14 @@ const { checkStatus } = useNetwork();
 const showSyncModal = ref(false);
 const syncStatus = ref<'idle' | 'checking' | 'syncing' | 'completed' | 'error'>('idle');
 const syncLogs = ref<string[]>([]);
+
+// Estado banner descarga APK para móviles
+const showApkBanner = ref(!$q.localStorage.getItem('dismissed_apk_banner'));
+
+function dismissApkBanner() {
+  showApkBanner.value = false;
+  $q.localStorage.setItem('dismissed_apk_banner', true);
+}
 
 
 // Detectar reconexión y proponer sincronización automática de cambios offline

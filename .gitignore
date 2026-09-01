@@ -9,6 +9,8 @@ server/dist
 src-capacitor/android
 src-capacitor/ios
 *.apk
+!.env.example
+!public/app-release.apk
 *.aab
 
 # Environment variables & secrets
