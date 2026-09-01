@@ -40,6 +40,9 @@ jobs:
             fi
 
             # 4. Construir y levantar contenedores con Docker Compose
+            echo "🧹 Limpiando caché obsoleta de BuildKit..."
+            docker builder prune -f || true
+
             echo "🏗️ Construyendo y levantando contenedores..."
             docker compose up -d --build --remove-orphans
 
